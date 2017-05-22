@@ -47,6 +47,12 @@ class ModelSelector(object):
             return None
 
 
+    @property
+    def n_components(self):
+        return range(self.min_n_components, self.max_n_components + 1)
+
+
+
 class SelectorConstant(ModelSelector):
     """ select the model with value self.n_constant
 
@@ -75,10 +81,22 @@ class SelectorBIC(ModelSelector):
         :return: GaussianHMM object
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        bic_score = lambda logL, p, N: (-2.0 * logL) + (p * np.log(N))
+        best_score = float("inf")
+        best_model = None
 
-        # TODO implement model selection based on BIC scores
-        raise NotImplementedError
+        for num_component in self.n_components:
+            try:
+                model = self.base_model(num_component).fit(self.X, self.lengths)
+                logL = model.score(self.X, self.lengths)
+                score = bic_score(logL, model.n_features, len(self.sequences))
+                if score < best_score:
+                    best_score = score
+                    best_model = model
+            except Exception as e:
+                pass
 
+        return best_model
 
 class SelectorDIC(ModelSelector):
     ''' select best model based on Discriminative Information Criterion
@@ -91,18 +109,86 @@ class SelectorDIC(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        score_models_list = []
+        for num_components in self.n_components:
+            try:
+                model = self.base_model(num_components)
+                model.fit(self.X, self.lengths)
+                score = model.score(self.X)
+                score_models_list.append((score, model))
+            except Exception as e:
+                pass
+        scores = [score for score, model in score_models_list]
+        sum_log_L = sum(scores)
+        best_dic_score = float("inf")
+        num_models = len(score_models_list)
+        best_model = None
+        for log_L, model in score_models_list:
+            dic_score = SelectorDIC.dic_score(log_L, sum_log_L, num_models)
+            if dic_score < best_dic_score:
+                best_model = model
+                best_dic_score = dic_score
 
-        # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+        return best_model
+
+    @staticmethod
+    def dic_score(log_L, sum_log_L, num_models):
+        return log_L - (sum_log_L - log_L) / (num_models - 1.0)
 
 
 class SelectorCV(ModelSelector):
-    ''' select best model based on average log Likelihood of cross-validation folds
-
+    ''' 
+    select best model based on average log Likelihood of cross-validation folds
     '''
 
-    def select(self):
+    def select(self, n_splits=3, shuffle=True):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        n_splits = min(n_splits, len(self.sequences))
+        kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=self.random_state)
 
-        # TODO implement model selection using CV
-        raise NotImplementedError
+        # for train_index, test_index in kf.split(self.X):
+        split_data = [(train_idx, test_idx) for train_idx, test_idx in kf.split(self.sequences)]
+        components_models_dict = {}
+        for num_components in self.n_components:
+            for train_idx, test_idx in split_data:
+                model = self.base_model(num_components)
+                if model is None:
+                    break
+                test_idx = list(test_idx)
+                train_idx = list(train_idx)
+                test_data, test_data_lengths = combine_sequences(test_idx, self.sequences)
+                train_data, train_data_lengths = combine_sequences(train_idx, self.sequences)
+                try:
+                    model.fit(train_data, train_data_lengths)
+
+                    score = model.score(test_data, test_data_lengths)
+
+                    score_model_list = components_models_dict.get(num_components, [])
+
+                    score_model_list.append((score, model))
+
+                    components_models_dict[num_components] = score_model_list
+                except Exception as e:
+                    pass
+
+        average_score_num_components_list = []
+        for num_components in self.n_components:
+            score_model_list = components_models_dict.get(num_components, None)
+            if score_model_list is None:
+                continue
+
+            # scores = list(map(lambda score, model: model, score_model_list))
+            scores = [score for score, model in score_model_list]
+            average_score = np.average(scores)
+            average_score_num_components_list.append((average_score, num_components))
+
+        if not average_score_num_components_list:
+            return None
+
+        best_avg_score, num_components = sorted(average_score_num_components_list, key=lambda t: t[0], reverse=True)[0]
+
+        best_model = self.base_model(num_components)
+
+        best_model.fit(self.X, self.lengths)
+
+        return best_model

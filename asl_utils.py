@@ -1,6 +1,7 @@
 from asl_data import SinglesData, WordsData
 import numpy as np
 from IPython.core.display import display, HTML
+from itertools import chain
 
 RAW_FEATURES = ['left-x', 'left-y', 'right-x', 'right-y']
 GROUND_FEATURES = ['grnd-rx', 'grnd-ry', 'grnd-lx', 'grnd-ly']
@@ -70,6 +71,7 @@ def combine_sequences(split_index_list, sequences):
     :return: tuple of list, list in format of X,lengths use in hmmlearn
     '''
     sequences_fold = [sequences[idx] for idx in split_index_list]
+    # X = chain(*sequences_fold)
     X = [item for sublist in sequences_fold for item in sublist]
     lengths = [len(sublist) for sublist in sequences_fold]
     return X, lengths
