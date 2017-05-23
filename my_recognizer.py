@@ -29,9 +29,10 @@ def recognize(models: dict, test_set: SinglesData):
             try:
                 word_probabilities[model_word] = model.score(X, length)
             except Exception as e:
-                print(e)
+                word_probabilities[model_word] = float("-inf")
 
         best_guess, score = sorted(word_probabilities.items(), key=lambda t: -t[1])[0]
+        probabilities.append(word_probabilities)
         guesses.append(best_guess)
 
     return probabilities, guesses
