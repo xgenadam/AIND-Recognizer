@@ -120,12 +120,12 @@ class SelectorDIC(ModelSelector):
                 pass
         scores = [score for score, model in score_models_list]
         sum_log_L = sum(scores)
-        best_dic_score = float("inf")
+        best_dic_score = float("-inf")
         num_models = len(score_models_list)
         best_model = None
         for log_L, model in score_models_list:
             dic_score = SelectorDIC.dic_score(log_L, sum_log_L, num_models)
-            if dic_score < best_dic_score:
+            if dic_score > best_dic_score:
                 best_model = model
                 best_dic_score = dic_score
 

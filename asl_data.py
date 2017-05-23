@@ -146,8 +146,8 @@ class WordsData(object):
         return self._data[word]
 
     def get_word_Xlengths(self, word:str):
-        """ getter for single word (X, lengths) tuple for use with hmmlearn library
-
+        """ 
+        getter for single word (X, lengths) tuple for use with hmmlearn library
         :param word:
         :return: (list, list)
             (X, lengths) tuple, where X is a numpy array of feature lists and lengths is
@@ -158,8 +158,8 @@ class WordsData(object):
 
 
 class SinglesData(object):
-    """ class provides loading and getters for ASL data suitable for use with hmmlearn library
-
+    """ 
+    class provides loading and getters for ASL data suitable for use with hmmlearn library
     """
 
     def __init__(self, asl:AslDb, csvfile:str, feature_list):
